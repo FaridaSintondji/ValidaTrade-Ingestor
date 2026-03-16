@@ -1,6 +1,3 @@
-# ValidaTrade-Ingestor
-Pipeline ETL Python modulaire pour l'ingestion de données financières. Utilisation de la POO pour l'extensibilité des sources et de Pydantic V2 pour la validation et le nettoyage strict des données (Data Quality).
-
 # 🪙 ValidaTrade-Ingestor
 
 **ValidaTrade-Ingestor** est un pipeline ETL (Extract, Transform, Load) modulaire conçu pour ingérer des données financières provenant de sources hétérogènes (API REST et fichiers CSV). L'objectif principal est de garantir la qualité et l'intégrité des données avant leur stockage en Data Warehouse.
@@ -62,11 +59,11 @@ python main_csv.py
 
 ```
 
-Pour ingérer les données depuis l'api coin_gecko' :
+Pour ingérer les données depuis l'api coin_gecko :
 
 ```bash
 python api_csv.py
 
 ```
 
-**Contact** : Farida SINTONDJI – [LinkedIn](https://github.com/FaridaSintondji/pipeline_marketing)
+**Contact** : Farida SINTONDJI – [LinkedIn](http://www.linkedin.com/in/farida-sintondji-94919127a)
