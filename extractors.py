@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import requests
+import csv
 
 class BaseExtractor(ABC):
     def __init__(self, source_name: str):
@@ -48,8 +49,26 @@ class APIExtractor(BaseExtractor):
 
 class CSVExtractor(BaseExtractor):
     def fetch_data(self):
-        # Simulation d'une lecture de fichier CSV
+        file_path = "raw_data/trade.csv"
+        
         print(f"Lecture du fichier CSV {self.source_name}...")
-        return [
-            {"symbol": "sol ", "price": 140.0, "amount": 10, "timestamp": "2026-03-13 11:00:00", "platform": "LocalFile"}
-        ]
+        
+        formatted_data = []
+
+        try:
+            with open(file_path, mode='r', encoding ='utf-8-sig') as file:
+                # DictReader utilise la première ligne (header) pour créer des dictionnaires
+                reader = csv.DictReader(file)
+
+                for row in reader:
+                   # Ici, 'row' est déjà un dictionnaire : {"symbol": "BTC", "price": "63000.5", ...}
+                   formatted_data.append(row)
+
+            return formatted_data
+    
+        except FileNotFoundError:
+            print(f"Erreur: Le fichier {file_path} est introuvable")
+            return []
+        except Exception as e:
+            print(f"Erreur: Erreur lors de la lecture du CSV: {e}")
+            return []
