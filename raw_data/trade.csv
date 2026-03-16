@@ -1,0 +1,4 @@
+﻿symbol,price,amount,timestamp,platform
+BTC,63000.5,0.1,2026-03-14 10:00:00,LocalFile
+ETH,3200.0,2,2026-03-14 10:05:00,LocalFile
+DOT,invalid_price,10,2026-03-14 10:10:00,LocalFile
