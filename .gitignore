@@ -1,0 +1,52 @@
+# ========================================
+# .gitignore pour ValidaTrade-Ingestor
+# ========================================
+
+# --- Environnements virtuels Python ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Cache Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# --- Fichiers de build et distribution ---
+*.egg-info/
+dist/
+build/
+*.egg
+
+# --- Données brutes et outputs (ne pas versionner de vraies données) ---
+output/
+*.parquet
+# Garder trade.csv car c'est un fichier de test volontairement versionné
+# Si tu as de vraies données sensibles, décommente la ligne suivante :
+# raw_data/
+
+# --- Variables d'environnement (TRÈS IMPORTANT : ne jamais committer les secrets) ---
+.env
+.env.local
+.env.*.local
+*.env
+
+# --- IDE / Éditeurs ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*.DS_Store
+
+# --- Pytest ---
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Jupyter Notebooks ---
+.ipynb_checkpoints/
+
+# --- Logs ---
+*.log

@@ -1,0 +1,53 @@
+# ============================================================
+# .github/workflows/ci.yml
+# Pipeline CI pour ValidaTrade-Ingestor
+#
+# Ce workflow se déclenche automatiquement à chaque push ou
+# Pull Request sur la branche main. Il vérifie que le code
+# Pydantic ne casse pas en lançant les tests pytest.
+# ============================================================
+
+name: CI - Tests Pydantic ValidaTrade
+
+# --- Déclencheurs ---
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+# --- Jobs ---
+jobs:
+  test:
+    name: Run Pytest
+    runs-on: ubuntu-latest   # GitHub fournit une machine virtuelle Ubuntu gratuite
+
+    steps:
+      # Étape 1 : Récupérer le code source du repo
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      # Étape 2 : Installer Python 3.12 (même version que ton Dockerfile)
+      - name: Configurer Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"   # Met en cache les dépendances pour accélérer les runs suivants
+
+      # Étape 3 : Installer les dépendances du projet
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      # Étape 4 : Installer pytest (outil de test)
+      - name: Installer pytest
+        run: pip install pytest
+
+      # Étape 5 : Lancer les tests !
+      # -v = mode verbeux (on voit chaque test individuel)
+      # --tb=short = affiche un traceback court en cas d'échec
+      - name: Lancer les tests Pydantic
+        run: pytest tests/ -v --tb=short
