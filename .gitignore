@@ -33,6 +33,17 @@ output/
 .env.*.local
 *.env
 
+# --- Clés Cloud (CRITIQUE : credentials GCP / AWS / Azure jamais sur Git) ---
+# Toute clé service account JSON, où qu'elle soit dans le repo
+*-key.json
+*-credentials.json
+gcp-key.json
+service-account*.json
+# Dossier conventionnel pour stocker les clés en local
+.gcp/
+.aws/
+.credentials/
+
 # --- IDE / Éditeurs ---
 .idea/
 .vscode/

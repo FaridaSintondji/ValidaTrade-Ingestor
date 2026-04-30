@@ -1,42 +1,84 @@
+"""
+main_api.py
+===========
+Pipeline d'ingestion via API CoinGecko.
+
+Flux :
+    1. Extraction       -> APIExtractor.fetch_data()
+    2. Validation       -> Pydantic (modèle Trade)
+    3. Export Parquet   -> Pandas + PyArrow (zone "silver" locale)
+    4. Upload GCS       -> GCSLoader (zone bronze/silver dans le cloud)
+
+Variables d'environnement attendues :
+    GOOGLE_APPLICATION_CREDENTIALS  -> chemin vers la clé JSON du service account
+    VALIDATRADE_GCS_BUCKET          -> nom du bucket GCS cible
+                                       (par défaut : 'validatrade-raw-CHANGEME')
+"""
+
+import os
+from pathlib import Path
+from datetime import datetime, timezone
+
+import pandas as pd
+
 from models import Trade
-from extractors import APIExtractor, CSVExtractor
-import requests
-import json
+from extractors import APIExtractor
+from loaders import GCSLoader
+
+
+OUTPUT_DIR = Path("output")
+DEFAULT_BUCKET = "validatrade-raw"
+
 
 def main():
-    #On instancie notre extracteur
+    # 1. Extraction --------------------------------------------------------
     source_api = APIExtractor("CoinGecko-Production")
+    print("--- Démarrage du pipeline d'ingestion via API ---")
 
-    print ("-- Démarrage du pipeline d'ingestion")
-
-    #Récupération des données brutes
     raw_data = source_api.fetch_data()
-    # On gère le cas où aucune donnée n'est récupérée
     if not raw_data:
-        print("Aucune donnée récupérée. Arrêt du pipeline")
+        print("Aucune donnée récupérée. Arrêt du pipeline.")
         return
-    
-    validated_trades = []
 
+    # 2. Validation Pydantic ----------------------------------------------
+    validated_trades = []
     for item in raw_data:
         try:
-            #Pydantic valide et nettoie les données
             trade_obj = Trade(**item)
-
-            # On utilise une méthode de notre classe POO
             trade_obj.calculate_total()
-
             validated_trades.append(trade_obj)
-            print(f"Validation réussie pour {trade_obj.symbol}")
-
+            print(f"✅ Validation réussie pour {trade_obj.symbol}")
         except Exception as e:
-            #Si Pydantic trouve uen erreur, on logue sans crash
-            print(f"Erreur de validation sur un élément: {e}")
+            print(f"⚠️  Erreur de validation sur un élément : {e}")
 
-    print(f"\n---Résumé: {len(validated_trades)} trades prêts pour le stockage ---")
+    if not validated_trades:
+        print("Aucun trade valide après filtrage. Arrêt du pipeline.")
+        return
 
-    for t in validated_trades:
-        print (t.model_dump())
+    print(f"\n--- {len(validated_trades)} trades validés, prêts pour le stockage ---")
+
+    # 3. Export Parquet (zone silver locale) ------------------------------
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    df = pd.DataFrame([t.model_dump() for t in validated_trades])
+    local_parquet = OUTPUT_DIR / "trades_api.parquet"
+    df.to_parquet(local_parquet, engine="pyarrow", index=False)
+    print(f"💾 Parquet écrit en local : {local_parquet}")
+
+    # 4. Upload vers GCS --------------------------------------------------
+    bucket = os.getenv("VALIDATRADE_GCS_BUCKET", DEFAULT_BUCKET)
+    try:
+        loader = GCSLoader(bucket_name=bucket)
+        remote_key = GCSLoader.build_partitioned_key(
+            prefix="trades/api",
+            filename="trades.parquet",
+            ts=datetime.now(timezone.utc),
+        )
+        uri = loader.upload(local_path=str(local_parquet), remote_key=remote_key)
+        print(f"\n🌥️  Pipeline terminé. Données disponibles à : {uri}")
+    except EnvironmentError as e:
+        print(f"\n⚠️  Upload GCS ignoré ({e})")
+        print(f"   Parquet local conservé : {local_parquet}")
+
 
 if __name__ == "__main__":
     main()

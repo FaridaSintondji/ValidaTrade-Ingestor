@@ -117,7 +117,6 @@ class TestTradeValidationErrors:
 
     def test_price_as_text_raises_error(self, valid_trade_data):
         """Un prix sous forme de texte non-numérique doit lever une ValidationError.
-        C'est exactement le cas de Data Quality décrit dans ton rapport !
         """
         valid_trade_data["price"] = "pas_un_prix"
         with pytest.raises(ValidationError) as exc_info:
