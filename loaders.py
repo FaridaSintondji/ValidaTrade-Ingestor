@@ -80,13 +80,12 @@ class GCSLoader(BaseLoader):
 
         try:
             self.client = storage.Client()
-            # Vérifie que le bucket existe et qu'on a les droits.
-            self.bucket = self.client.get_bucket(bucket_name)
-        except NotFound:
-            raise ValueError(
-                f"Le bucket '{bucket_name}' n'existe pas ou le service "
-                f"account n'a pas les droits pour le voir."
-            )
+            # bucket() crée une référence Python locale, SANS appel API.
+            # On évite ainsi d'exiger storage.buckets.get au service account
+            # (principe du moindre privilège).
+            # Les vraies erreurs (bucket inexistant, droits insuffisants)
+            # remonteront lors du upload, où on a les permissions objets.
+            self.bucket = self.client.bucket(bucket_name)
         except GoogleAPICallError as e:
             raise ConnectionError(f"Erreur d'appel API GCP : {e}")
 

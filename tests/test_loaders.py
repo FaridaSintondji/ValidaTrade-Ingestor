@@ -78,12 +78,12 @@ class TestGCSLoaderInit:
 
         # On simule un client GCP qui retourne un bucket
         mock_bucket = MagicMock()
-        mock_client_cls.return_value.get_bucket.return_value = mock_bucket
+        mock_client_cls.return_value.bucket.return_value = mock_bucket
 
         loader = GCSLoader(bucket_name="my-bucket")
         assert loader.bucket_name == "my-bucket"
         assert loader.destination_name == "gcs://my-bucket"
-        mock_client_cls.return_value.get_bucket.assert_called_once_with("my-bucket")
+        mock_client_cls.return_value.bucket.assert_called_once_with("my-bucket")
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +98,7 @@ class TestGCSLoaderUpload:
         self, mock_client_cls, monkeypatch
     ):
         monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/fake/path.json")
-        mock_client_cls.return_value.get_bucket.return_value = MagicMock()
+        mock_client_cls.return_value.bucket.return_value = MagicMock()
 
         loader = GCSLoader(bucket_name="my-bucket")
         with pytest.raises(FileNotFoundError):
@@ -115,7 +115,7 @@ class TestGCSLoaderUpload:
         mock_bucket = MagicMock()
         mock_blob = MagicMock()
         mock_bucket.blob.return_value = mock_blob
-        mock_client_cls.return_value.get_bucket.return_value = mock_bucket
+        mock_client_cls.return_value.bucket.return_value = mock_bucket
 
         # Crée un fichier local fictif (vrai fichier sur le filesystem temporaire)
         fake_parquet = tmp_path / "trades.parquet"
