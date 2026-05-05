@@ -1,0 +1,23 @@
+version: 2
+
+sources:
+  - name: validatrade_raw
+    description: "Donnees brutes ingerees par le pipeline Python (extracteurs CSV et API CoinGecko), chargees depuis GCS vers BigQuery."
+    database: validatrade-ingestor
+    schema: validatrade_raw
+    tables:
+      - name: trades
+        description: "Trades crypto valides par Pydantic. Un fichier Parquet par jour d'ingestion sur GCS, charge en table native BQ."
+        columns:
+          - name: symbol
+            description: "Code de la crypto en majuscules (BTC, ETH, ...)."
+          - name: price
+            description: "Prix unitaire au moment du trade. Toujours strictement positif (validation Pydantic)."
+          - name: amount
+            description: "Quantite tradee. Toujours strictement positif."
+          - name: timestamp
+            description: "Horodatage du trade en UTC."
+          - name: platform
+            description: "Plateforme/source d'ou provient le trade (kraken, CoinGecko-Production, ...)."
+          - name: total_value
+            description: "Valeur totale (price * amount), calculee par la methode calculate_total() du modele Pydantic."
