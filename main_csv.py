@@ -61,7 +61,7 @@ def main():
     OUTPUT_DIR.mkdir(exist_ok=True)
     df = pd.DataFrame([t.model_dump() for t in validated_trades])
     local_parquet = OUTPUT_DIR / "trades_csv.parquet"
-    df.to_parquet(local_parquet, engine="pyarrow", index=False)
+    df.to_parquet(local_parquet, engine="pyarrow", index=False, coerce_timestamps="us", allow_truncated_timestamps=True)
     print(f"💾 Parquet écrit en local : {local_parquet}")
 
     # 4. Upload vers GCS --------------------------------------------------

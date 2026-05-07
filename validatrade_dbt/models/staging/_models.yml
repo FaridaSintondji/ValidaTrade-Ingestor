@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: stg_trades
+    description: "Trades crypto valides, avec types nettoyes et colonnes derivees pour le partitionnement aval."
+    columns:
+      - name: symbol
+        description: "Code de la crypto en majuscules."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['BTC', 'ETH', 'SOL', 'DOT', 'ADA']
+      - name: price
+        description: "Prix unitaire au moment du trade."
+        tests:
+          - not_null
+      - name: amount
+        description: "Quantite tradee."
+        tests:
+          - not_null
+      - name: traded_at
+        description: "Horodatage du trade en UTC."
+        tests:
+          - not_null
+      - name: trade_date
+        description: "Date du trade en UTC, derivee de traded_at."
+        tests:
+          - not_null
+      - name: platform
+        description: "Plateforme/source d'ou provient le trade."
+        tests:
+          - not_null

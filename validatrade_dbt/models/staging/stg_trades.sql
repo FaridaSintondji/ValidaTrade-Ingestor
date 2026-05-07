@@ -22,8 +22,8 @@ cleaned as (
         amount,
         total_value,
         platform,
-        timestamp_seconds(timestamp) as traded_at,
-        date(timestamp_seconds(timestamp)) as trade_date,
+        timestamp as traded_at,
+        date(timestamp) as trade_date,
         current_timestamp() as _staged_at
     from raw_trades 
 )

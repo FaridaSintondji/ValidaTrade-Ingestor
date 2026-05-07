@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: daily_vwap
+    description: "Prix moyen pondere par les volumes (VWAP) par jour et par symbole."
+    columns:
+      - name: symbol
+        description: "Code de la crypto."
+        tests:
+          - not_null
+      - name: trade_date
+        description: "Jour d'agregation."
+        tests:
+          - not_null
+      - name: nb_trades
+        description: "Nombre de trades agreges dans la journee."
+        tests:
+          - not_null
+      - name: vwap
+        description: "Prix moyen pondere par les volumes : sum(price*amount) / sum(amount)."
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - symbol
+              - trade_date
