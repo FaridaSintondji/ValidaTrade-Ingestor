@@ -20,7 +20,6 @@
 9. [Téléchargement et sécurisation de la clé JSON](#8-téléchargement-et-sécurisation-de-la-clé-json)
 10. [Récapitulatif des décisions](#9-récapitulatif-des-décisions)
 11. [Variables d'environnement](#10-variables-denvironnement-utilisées-ensuite)
-12. [Pitch entretien](#11-pitch-entretien-condensé)
 
 ---
 
@@ -272,8 +271,3 @@ export VALIDATRADE_GCS_BUCKET="validatrade-raw"
 
 > 💡 **Note :** La variable `GOOGLE_APPLICATION_CREDENTIALS` est le **standard Google** : la lib `google-cloud-storage` la lit automatiquement, sans aucune configuration explicite dans le code.
 
----
-
-## 11. Pitch entretien condensé
-
-> *« J'ai mis en place une intégration GCP propre pour mon pipeline. Le bucket GCS `validatrade-raw` est en single-region `us-central1` pour rester dans le free tier. L'authentification passe par un service account dédié, scopé à ce bucket uniquement avec le rôle `Storage Object Admin` — pas de rôle au niveau projet, principe du moindre privilège. La clé JSON est stockée hors du repo, dans un dossier protégé par `.gitignore`. J'ai mis en place une alerte budget de 5 EUR avec notifications à 50/90/100 % avant tout déploiement, dans une logique FinOps. »*
