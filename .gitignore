@@ -61,3 +61,11 @@ htmlcov/
 
 # --- Logs ---
 *.log
+
+# --- dbt (artefacts générés par dbt run / dbt test / dbt docs) ---
+# target/ contient le SQL compilé, le manifest.json, les docs générées
+validatrade_dbt/target/
+# dbt_packages/ contient les dépendances installées par dbt deps (dbt_utils, ...)
+validatrade_dbt/dbt_packages/
+# logs/ contient les logs détaillés de chaque commande dbt
+validatrade_dbt/logs/
