@@ -28,6 +28,7 @@ from airflow.operators.bash import BashOperator
 # On le verra : ce dossier sera monte via docker-compose.
 PROJECT_ROOT = "/opt/airflow/validatrade"
 DBT_PROJECT  = f"{PROJECT_ROOT}/validatrade_dbt"
+DBT_PROFILES_DIR = "/opt/airflow/dbt-profiles"
 
 default_args = {
     "owner": "farida",
@@ -61,7 +62,7 @@ with DAG(
     # --------------------------------------------------------
     load_bigquery = BashOperator(
         task_id="load_bigquery",
-        bash_command="echo 'TODO : automatiser le chargement Parquet -> BQ en Python'",
+        bash_command=f"cd {PROJECT_ROOT} && python main_bq_load.py",
     )
 
     # --------------------------------------------------------
@@ -69,7 +70,7 @@ with DAG(
     # --------------------------------------------------------
     dbt_run = BashOperator(
         task_id="dbt_run",
-        bash_command=f"cd {DBT_PROJECT} && dbt run",
+        bash_command=f"cd {DBT_PROJECT} && dbt run --profiles-dir {DBT_PROFILES_DIR}",
     )
 
     # --------------------------------------------------------
@@ -77,7 +78,7 @@ with DAG(
     # --------------------------------------------------------
     dbt_test = BashOperator(
         task_id="dbt_test",
-        bash_command=f"cd {DBT_PROJECT} && dbt test",
+        bash_command=f"cd {DBT_PROJECT} && dbt test --profiles-dir {DBT_PROFILES_DIR}",
     )
 
     # --------------------------------------------------------

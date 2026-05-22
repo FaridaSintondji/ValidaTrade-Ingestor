@@ -49,8 +49,9 @@ x-airflow-common:
   # In order to add custom dependencies or upgrade provider packages you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.10.4}
-  # build: .
+  #
+  build: .
+  image: validatrade-airflow:latest
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -62,6 +63,10 @@ x-airflow-common:
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/keys/validatrade-ingestor-key.json
     VALIDATRADE_GCS_BUCKET: validatrade-raw
+    VALIDATRADE_OUTPUT_DIR: /tmp/validatrade
+    DBT_LOG_PATH: /tmp/dbt-logs
+    DBT_TARGET_PATH: /tmp/dbt-target
+    GCP_PROJECT_ID: ${GCP_PROJECT_ID}
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
@@ -70,7 +75,7 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
     # for other purpose (development, test and especially production usage) build/extend Airflow image.
-    _PIP_ADDITIONAL_REQUIREMENTS: 'dbt-core==1.11.8 dbt-bigquery==1.11.1 google-cloud-storage==2.18.2 pydantic==2.12.0 pandas==2.2.3 pyarrow==19.0.1 requests==2.32.3'
+    #_PIP_ADDITIONAL_REQUIREMENTS: 'dbt-core==1.11.8 dbt-bigquery==1.11.1 google-cloud-storage==2.18.2 pydantic==2.12.0 pandas==2.2.3 pyarrow==19.0.1 requests==2.32.3'
     # The following line can be used to set a custom config file, stored in the local config folder
     # If you want to use it, outcomment it and replace airflow.cfg with the name of your config file
     # AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
@@ -81,6 +86,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     - ../:/opt/airflow/validatrade:ro
     - /mnt/c/Users/faris/.gcp:/opt/airflow/keys:ro
+    - ${AIRFLOW_PROJ_DIR:-.}/dbt-profiles:/opt/airflow/dbt-profiles:ro
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -153,7 +159,7 @@ services:
 
   airflow-worker:
     <<: *airflow-common
-    command: celery worker
+    command: ["celery", "worker", "-H", "celery@%h"]
     healthcheck:
       # yamllint disable rule:line-length
       test:
@@ -163,6 +169,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+    hostname: airflow-worker
     environment:
       <<: *airflow-common-env
       # Required to handle warm shutdown of the celery workers properly

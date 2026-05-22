@@ -26,7 +26,7 @@ from extractors import APIExtractor
 from loaders import GCSLoader
 
 
-OUTPUT_DIR = Path("output")
+OUTPUT_DIR = Path(os.getenv("VALIDATRADE_OUTPUT_DIR", "output"))
 DEFAULT_BUCKET = "validatrade-raw"
 
 

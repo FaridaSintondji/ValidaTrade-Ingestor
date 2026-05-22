@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 import os
 
-from google.cloud import storage
+from google.cloud import storage, bigquery
 from google.api_core.exceptions import GoogleAPICallError, NotFound
 
 
@@ -139,4 +139,87 @@ class GCSLoader(BaseLoader):
             f"month={ts.month:02d}/"
             f"day={ts.day:02d}/"
             f"{filename}"
+        )
+
+class BigQueryLoader:
+    """
+    Charge un fichier Parquet depuis GCS vers une table BigQuery.
+
+    Différence avec GCSLoader :
+    - GCSLoader transfère un fichier LOCAL → GCS (cloud storage).
+    - BigQueryLoader déclenche un job de chargement GCS → BigQuery
+      (tout se passe côté GCP, sans transiter par la machine locale).
+
+    C'est pourquoi BigQueryLoader n'hérite pas de BaseLoader :
+    la signature de la méthode principale (gcs_uri → table BigQuery)
+    est différente de celle de `upload(local_path, remote_key)`.
+
+    Authentification :
+        Utilise GOOGLE_APPLICATION_CREDENTIALS (même mécanisme que GCSLoader).
+
+    Usage :
+        loader = BigQueryLoader(project_id="mon-projet-gcp")
+        loader.load(
+            gcs_uri="gs://validatrade-raw/trades/csv/year=2026/.../trades.parquet",
+            table_ref="validatrade_raw.trades",
+        )
+    """
+
+    def __init__(self, project_id: str):
+        if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+            raise EnvironmentError(
+                "GOOGLE_APPLICATION_CREDENTIALS n'est pas définie. "
+                "Pointe-la vers ta clé JSON de service account."
+            )
+        self.project_id = project_id
+        self.client = bigquery.Client(project=project_id)
+
+    def load(
+        self,
+        gcs_uri: str,
+        table_ref: str,
+        write_disposition: str = "WRITE_APPEND",
+    ) -> None:
+        """
+        Déclenche un job BigQuery Load : GCS Parquet → table BigQuery.
+
+        Args:
+            gcs_uri:           URI du fichier Parquet dans GCS.
+                               ex. 'gs://validatrade-raw/trades/csv/.../trades.parquet'
+            table_ref:         Référence de la table cible au format 'dataset.table'
+                               ou 'project.dataset.table'.
+                               ex. 'validatrade_raw.trades'
+            write_disposition: 'WRITE_APPEND' (défaut) ou 'WRITE_TRUNCATE'.
+                               APPEND conserve l'historique ; TRUNCATE écrase.
+
+        Raises:
+            google.cloud.exceptions.GoogleAPICallError : problème côté GCP.
+        """
+        full_table = (
+            table_ref
+            if "." in table_ref and table_ref.count(".") >= 2
+            else f"{self.project_id}.{table_ref}"
+        )
+
+        job_config = bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.PARQUET,
+            write_disposition=write_disposition,
+            # autodetect=True : BigQuery infère le schéma depuis le Parquet.
+            # En prod on préférerait un schéma explicite, mais pour
+            # ce projet de formation c'est suffisant et plus maintenable.
+            autodetect=True,
+        )
+
+        print(f"⬆️  Lancement du job BigQuery Load : {gcs_uri} → {full_table} ...")
+
+        load_job = self.client.load_table_from_uri(
+            gcs_uri, full_table, job_config=job_config
+        )
+        # .result() est bloquant : on attend la fin du job avant de continuer.
+        # C'est le comportement souhaité dans un DAG Airflow séquentiel.
+        load_job.result()
+
+        table = self.client.get_table(full_table)
+        print(
+            f"✅ Chargement terminé : {table.num_rows} lignes dans {full_table}."
         )

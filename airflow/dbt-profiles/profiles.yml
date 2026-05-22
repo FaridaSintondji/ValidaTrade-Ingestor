@@ -1,0 +1,13 @@
+validatrade_dbt:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: validatrade_marts
+      location: us-central1
+      keyfile: /opt/airflow/keys/validatrade-ingestor-key.json
+      threads: 4
+      job_execution_timeout_seconds: 300
+      job_retries: 1
