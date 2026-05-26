@@ -1,24 +1,30 @@
 # 🪙 ValidaTrade-Ingestor
 
-**ValidaTrade-Ingestor** est un pipeline ELT modulaire qui ingère des trades crypto (sources CSV ou API CoinGecko), les valide avec Pydantic, les pousse dans Google Cloud Storage en partitionnement Hive, les charge dans BigQuery, et les transforme en tables analytiques avec dbt.
+**ValidaTrade-Ingestor** est un pipeline ELT modulaire qui ingère des trades crypto (sources CSV ou API CoinGecko), les valide avec Pydantic, les pousse dans Google Cloud Storage en partitionnement Hive, les charge dans BigQuery, les transforme en tables analytiques avec dbt, et orchestre l'ensemble via Apache Airflow.
 
-## 🏗️ Architecture (Phase 2)
+## 🏗️ Architecture (Phase 3)
 
 ```text
-                                                                    ┌───────────────┐
-   ┌────────┐    ┌────────────┐    ┌──────────────┐    ┌────────┐   │ dbt staging   │
-   │  CSV   │───▶│ Pydantic   │───▶│ Parquet (us) │───▶│  GCS   │──▶│ stg_trades    │──┐
-   └────────┘    │ validation │    │ + timestamps │    │ bucket │   │  (view BQ)    │  │
-   ┌────────┐    │            │    │ microseconds │    │ Hive   │   └───────┬───────┘  │
-   │CoinGecko│──▶│            │    │              │    │partit. │           │          │
-   │   API   │   └────────────┘    └──────────────┘    └────┬───┘           ▼          │
-   └────────┘                                               │       ┌───────────────┐  │
-                                                            ▼       │ dbt marts     │  │
-                                                  ┌─────────────────┐│ daily_vwap    │◀┘
-                                                  │ BigQuery native ││  (table BQ)   │
-                                                  │ validatrade_raw ││ + 12 tests    │
-                                                  │     .trades     │└───────────────┘
-                                                  └─────────────────┘
+   ┌────────────────────────────────────── Apache Airflow (DAG quotidien 6h UTC) ──────────────────────────────────────┐
+   │                                                                                                                  │
+   │   extract_validate  ───────▶   load_bigquery   ───────▶   dbt_run   ───────▶   dbt_test                          │
+   │  (main_csv.py)              (main_bq_load.py)        (staging + marts)     (12 tests YAML)                       │
+   │                                                                                                                  │
+   └─────┬──────────────────────────────┬──────────────────────────────┬───────────────────────────────┬──────────────┘
+         │                              │                              │                               │
+         ▼                              ▼                              ▼                               ▼
+   ┌────────────┐    ┌──────────────┐    ┌────────┐    ┌─────────────────┐    ┌───────────────┐    ┌───────────────┐
+   │  CSV / API │───▶│   Pydantic   │───▶│ Parquet│───▶│ GCS (us-central1)│──▶│ BigQuery native│──▶│ dbt staging   │
+   │  CoinGecko │    │  validation  │    │  (us)  │    │ partition. Hive  │   │ validatrade_raw│   │ stg_trades    │──┐
+   └────────────┘    │              │    │        │    │ year=/month=/day=│   │     .trades    │   │   (view BQ)   │  │
+                     └──────────────┘    └────────┘    └─────────────────┘    └────────────────┘   └───────┬───────┘  │
+                                                                                                           │          │
+                                                                                                           ▼          │
+                                                                                                  ┌───────────────┐   │
+                                                                                                  │  dbt marts    │   │
+                                                                                                  │  daily_vwap   │◀──┘
+                                                                                                  │  (table BQ)   │
+                                                                                                  └───────────────┘
 ```
 
 ## 🚀 Fonctionnalités Clés
@@ -30,21 +36,23 @@
 * **Stockage cloud** : Google Cloud Storage en région `us-central1`, partitionnement Hive `year=/month=/day=` pour partition pruning au moment des requêtes BigQuery.
 * **Data Warehouse** : BigQuery, table native partitionnable, accessible aux analystes en SQL.
 * **Transformation dbt-core** : modèles staging → marts en SQL versionné, refs et lineage automatique, 12 tests YAML (`not_null`, `accepted_values`, `unique_combination_of_columns`).
-* **Sécurité** : Service Account dédié, principe du moindre privilège (rôles scopés au bucket et au dataset), clé JSON hors du repo.
+* **Sécurité** : Service Account dédié, principe du moindre privilège (rôles scopés au bucket et au dataset), clé JSON hors du repo, code projet monté en read-only (`:ro`) dans le conteneur Airflow.
 * **FinOps** : alerte budget GCP à 5 EUR/mois avec notifications par email.
 * **CI/CD** : 21 tests unitaires Python exécutés à chaque push via GitHub Actions.
+* **Orchestration Airflow** : stack Apache Airflow 2.10.5 (CeleryExecutor) en Docker avec image custom, DAG quotidien à 6h UTC (`extract_validate → load_bigquery → dbt_run → dbt_test`), retries automatiques, healthchecks sur tous les services. Container immutability : code en `:ro`, état writeable redirigé vers `/tmp` via env vars (`VALIDATRADE_OUTPUT_DIR`, `DBT_LOG_PATH`, `DBT_TARGET_PATH`).
 
 ## 📁 Structure du Projet
 
 ```text
 ValidaTrade-Ingestor/
 ├── extractors.py                    # Extracteurs API CoinGecko et CSV (Phase 0)
-├── loaders.py                       # BaseLoader abstrait + GCSLoader (Phase 2)
+├── loaders.py                       # BaseLoader abstrait + GCSLoader + BigQueryLoader (Phase 2/3)
 ├── models.py                        # Schémas Pydantic V2 (Phase 0)
 ├── main_csv.py                      # Pipeline CSV → Parquet → GCS
 ├── main_api.py                      # Pipeline API CoinGecko → Parquet → GCS
+├── main_bq_load.py                  # Load GCS → BigQuery (Phase 3, orchestré par Airflow)
 ├── trade.csv                        # Données CSV de test
-├── requirements.txt                 # Dépendances Python (Pydantic, pandas, pyarrow, google-cloud-storage, pytest, ...)
+├── requirements.txt                 # Dépendances Python (Pydantic, pandas, pyarrow, google-cloud-storage, google-cloud-bigquery, pytest, ...)
 ├── tests/
 │   ├── conftest.py                  # Config pytest (PYTHONPATH)
 │   ├── test_models.py               # 13 tests sur le modèle Trade (Phase 1)
@@ -61,11 +69,17 @@ ValidaTrade-Ingestor/
 │       └── marts/
 │           ├── _models.yml          # Tests YAML marts
 │           └── daily_vwap.sql       # Modèle mart (table) — calcul VWAP
+├── airflow/                         # Stack Airflow (Phase 3)
+│   ├── Dockerfile                   # Image custom validatrade-airflow:latest (libs préinstallées)
+│   ├── docker-compose.yaml          # CeleryExecutor + postgres + redis (6 conteneurs)
+│   ├── .env.example                 # Modèle (AIRFLOW_UID, GCP_PROJECT_ID)
+│   ├── dags/
+│   │   └── validatrade_pipeline.py  # DAG quotidien 4 tâches
+│   └── dbt-profiles/
+│       └── profiles.yml             # Profil dbt service-account headless
 └── docs/                            # (générée par dbt docs)
-    Phase1_Git_Tests_CICD.docx
-    Phase2_Cloud_dbt.docx
-    Phase2_Setup_GCP_ModeOperatoire.docx
-    Phase2_Setup_BigQuery_dbt_ModeOperatoire.docx
+    setup_gcp
+    setup_bigquery_dbt
 ```
 
 ## 🛠️ Installation & Utilisation
@@ -126,6 +140,33 @@ dbt run         # exécute tous les modèles (staging + marts)
 dbt test        # vérifie les 12 tests YAML
 dbt docs generate && dbt docs serve   # documentation interactive
 ```
+
+#### 4. Orchestration Airflow (depuis le dossier airflow/)
+
+Setup une seule fois :
+
+```bash
+cd airflow
+cp .env.example .env
+echo "AIRFLOW_UID=$(id -u)" >> .env       # remplace AIRFLOW_UID
+# Édite .env pour mettre ton vrai GCP_PROJECT_ID
+
+docker compose build                       # build image custom (3-5 min)
+docker compose up airflow-init             # init métadonnées Airflow
+```
+
+Démarrage / arrêt :
+
+```bash
+docker compose up -d        # démarre toute la stack (6 conteneurs)
+docker compose ps           # vérifie healthchecks
+docker compose down         # arrêt simple (préserve la BDD)
+docker compose down -v      # arrêt + reset complet
+```
+
+Puis ouvre `http://localhost:8080` (login `airflow` / `airflow`), active le DAG `validatrade_pipeline` et clique sur ▶ Trigger DAG. Le pipeline s'exécutera automatiquement chaque jour à 6h UTC ensuite.
+
+Pour le détail des étapes : voir `docs/Phase3_Airflow_ModeOperatoire.docx`.
 
 ---
 
