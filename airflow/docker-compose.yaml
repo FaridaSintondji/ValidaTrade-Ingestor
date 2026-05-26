@@ -61,8 +61,8 @@ x-airflow-common:
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/keys/validatrade-ingestor-key.json
-    VALIDATRADE_GCS_BUCKET: validatrade-raw
+    GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/keys/${GCP_KEY_FILENAME}
+    VALIDATRADE_GCS_BUCKET: ${VALIDATRADE_GCS_BUCKET}
     VALIDATRADE_OUTPUT_DIR: /tmp/validatrade
     DBT_LOG_PATH: /tmp/dbt-logs
     DBT_TARGET_PATH: /tmp/dbt-target

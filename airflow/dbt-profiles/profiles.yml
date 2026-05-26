@@ -5,9 +5,9 @@ validatrade_dbt:
       type: bigquery
       method: service-account
       project: "{{ env_var('GCP_PROJECT_ID') }}"
-      dataset: validatrade_marts
+      dataset: "{{ env_var('VALIDATRADE_BQ_DATASET', 'validatrade_marts') }}"
       location: us-central1
-      keyfile: /opt/airflow/keys/validatrade-ingestor-key.json
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
       threads: 4
       job_execution_timeout_seconds: 300
       job_retries: 1

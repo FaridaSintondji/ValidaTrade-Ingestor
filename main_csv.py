@@ -25,6 +25,9 @@ from models import Trade
 from extractors import CSVExtractor
 from loaders import GCSLoader
 
+from dotenv import load_dotenv
+load_dotenv()
+
 
 OUTPUT_DIR = Path(os.getenv("VALIDATRADE_OUTPUT_DIR", "output"))
 DEFAULT_BUCKET = "validatrade-raw"
