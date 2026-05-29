@@ -72,6 +72,7 @@ with DAG(
         task_id="extract_validate",
         bash_command=f"cd {PROJECT_ROOT} && python main_api.py",
         env={"INGESTION_DATE": "{{ ds }}"},
+        append_env=True,
     )
 
     # ------------------------------------------------------------------ #
